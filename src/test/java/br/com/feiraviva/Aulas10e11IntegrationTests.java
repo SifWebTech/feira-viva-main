@@ -23,6 +23,7 @@ import java.math.BigDecimal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -93,5 +94,25 @@ class Aulas10e11IntegrationTests {
         assertNull(carrinhoLimpo.cupom());
         assertEquals("PADRAO", carrinhoLimpo.estrategiaFrete());
         assertFalse(carrinhoLimpo.itens().stream().findAny().isPresent());
+    }
+
+    @Test
+    void itemRecemAdicionadoDeveVoltarComIdNaResposta() {
+        var cliente = new Cliente();
+        cliente.setNome("Teste Id do Item");
+        cliente.setEmail("iditem@feiraviva.test");
+        cliente.setSenhaHash("senha-de-teste");
+        cliente = clienteRepository.save(cliente);
+
+        var produto = produtoRepository.findAll().getFirst();
+        var carrinho = carrinhoService.adicionarItem(cliente.getId(),
+                new ItemCarrinhoDTO(produto.getId(), 1));
+
+        var itemId = carrinho.itens().getFirst().id();
+        assertNotNull(itemId);
+
+        // o id devolvido já serve para o PUT /carrinho/itens/{itemId}
+        carrinho = carrinhoService.alterarQuantidade(cliente.getId(), itemId, 2);
+        assertEquals(2, carrinho.itens().getFirst().quantidade());
     }
 }

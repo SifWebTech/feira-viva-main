@@ -67,6 +67,8 @@ public class CarrinhoService {
                             setQuantidade(item, dto.quantidade());
                             carrinho.getItens().add(item);
                         });
+        // IDENTITY só gera o id no INSERT: força o flush para o item novo sair com id na resposta
+        carrinhoRepository.saveAndFlush(carrinho);
         return paraResponse(carrinho);
     }
 
