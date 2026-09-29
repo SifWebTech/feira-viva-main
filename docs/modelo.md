@@ -4,7 +4,7 @@
 > **Stack:** Java 21 LTS • Spring Boot 4.1.1 • Maven • React (Vite)
 > **Pacote base:** `br.com.feiraviva`
 > **Ambiente de desenvolvimento:** H2 em memória (`jdbc:h2:mem:feiraviva`) • porta **8090** • console em `/h2-console` (user `sa`, senha vazia)
-> **Versão:** 0.9 — atualizado na Aula 12 (Módulo 2 concluído)
+> **Versão:** 1.0 — atualizado na Aula 13 (Módulo 3 iniciado — banco versionado com Flyway)
 
 ## 1. Identificação
 
@@ -71,6 +71,32 @@ Endpoint de debug removido — singleton já comprovado em aula.
 | `/carrinho/frete` | POST | Definir estratégia de frete |
 | `/categorias/arvore` | GET | Consultar a árvore de categorias |
 
+## Atualização v1.0 — Migração do banco com Flyway
+
+### Adeus `ddl-auto=update`
+
+- `spring.jpa.hibernate.ddl-auto` passou de `update` para `validate`: o Hibernate
+  agora apenas confere se o esquema bate com as entidades, nunca altera a estrutura.
+- Quem controla o esquema é o **Flyway** (`spring-boot-starter-flyway`), via migrations
+  SQL versionadas em `src/main/resources/db/migration/`.
+- `spring-boot-h2console` habilita o console do H2 no Spring Boot 4 (não existe um
+  artefato `spring-boot-starter-h2-console` no BOM; o nome real é sem "starter" e sem hífen).
+- `DB_CLOSE_DELAY=-1` na URL do H2 mantém o banco em memória vivo entre as conexões
+  do Flyway e do Hibernate (pools distintos).
+
+### Migrations criadas
+
+| Arquivo | Conteúdo |
+|---|---|
+| `V1__cria_esquema_inicial.sql` | Todas as tabelas (categorias, produtos, clientes, enderecos, carrinhos, itens_carrinho, pedidos, itens_pedido) e índices de FK |
+| `V2__popula_dados_iniciais.sql` | Seed de categorias, subcategorias, produtos e cliente de teste — substitui o `DataSeeder.java` |
+| `V3__ajustes_indices.sql` | Índices de desempenho (`ativo`, `nome`, `data_criacao`) e `CHECK (estoque >= 0)` |
+
+- A classe `DataSeeder.java` foi removida — o seed agora é SQL puro versionado.
+- A tabela `flyway_schema_history` registra as 3 migrations aplicadas (`success=true`).
+- Regra adotada: **migration aplicada nunca é editada** — qualquer ajuste futuro vira
+  uma nova versão (`V4`, `V5`, ...).
+
 ## 2. MVP
 
 Compra de ponta a ponta: catálogo → detalhe do produto → carrinho → login/cadastro → endereço de entrega → confirmação do pedido (pagamento simulado).
@@ -98,7 +124,7 @@ Compra de ponta a ponta: catálogo → detalhe do produto → carrinho → login
 - `MetodoPagamento`: `CARTAO`, `PIX`, `BOLETO` — 🕒 planejado (Aula 24)
 - `PagamentoStatus`: `APROVADO`, `RECUSADO`, `PENDENTE` — 🕒 planejado (Aula 24)
 
-### Dados de desenvolvimento (DataSeeder)
+### Dados de desenvolvimento (seed via Flyway `V2__popula_dados_iniciais.sql`)
 
 - Categorias: *Horta e Orgânicos*, *Laticínios*
 - Produtos: Mel orgânico (estoque 12), Queijo minas (8), Café da serra (20)
@@ -186,24 +212,29 @@ feira-viva/
 ├── docs/
 │   └── modelo.md                  → este documento
 ├── frontend/                      → View (React + Vite) — a partir da Aula 17
-└── src/main/java/br/com/feiraviva/
-    ├── FeiravivaApplication.java
-    ├── model/                     → Produto, Categoria, Cliente, Endereco,
-    │                                 Carrinho, ItemCarrinho, Pedido, ItemPedido,
-    │                                 PedidoStatus
-    ├── repository/                → ProdutoRepository, CategoriaRepository,
-    │                                 ClienteRepository, CarrinhoRepository,
-    │                                 PedidoRepository (+ itens)
-    ├── service/                   → ProdutoService, ClienteService,
-    │                                 CarrinhoService, PedidoService (R1, R2, R4, R6)
-    ├── controller/                → ProdutoController, ClienteController,
-    │                                 CarrinhoController, PedidoController
-    ├── dto/                       → records de entrada/saída (ClienteDTO,
-    │                                 EnderecoDTO, ItemCarrinhoDTO, PedidoRequestDTO,
-    │                                 CarrinhoResponseDTO, PedidoResponseDTO, ...)
-    ├── exception/                 → ResourceNotFoundException, RegraDeNegocioException,
-    │                                 ApiErrorHandler (@RestControllerAdvice)
-    └── config/                    → DataSeeder, H2ConsoleConfig (dev)
+└── src/main/
+    ├── java/br/com/feiraviva/
+    │   ├── FeiravivaApplication.java
+    │   ├── model/                 → Produto, Categoria, Cliente, Endereco,
+    │   │                             Carrinho, ItemCarrinho, Pedido, ItemPedido,
+    │   │                             PedidoStatus
+    │   ├── repository/            → ProdutoRepository, CategoriaRepository,
+    │   │                             ClienteRepository, CarrinhoRepository,
+    │   │                             PedidoRepository (+ itens)
+    │   ├── service/                → ProdutoService, ClienteService,
+    │   │                             CarrinhoService, PedidoService (R1, R2, R4, R6)
+    │   ├── controller/             → ProdutoController, ClienteController,
+    │   │                             CarrinhoController, PedidoController
+    │   ├── dto/                    → records de entrada/saída (ClienteDTO,
+    │   │                             EnderecoDTO, ItemCarrinhoDTO, PedidoRequestDTO,
+    │   │                             CarrinhoResponseDTO, PedidoResponseDTO, ...)
+    │   ├── exception/               → ResourceNotFoundException, RegraDeNegocioException,
+    │   │                             ApiErrorHandler (@RestControllerAdvice)
+    │   └── config/                  → ConfiguracoesFeiraViva, OpenApiConfig
+    └── resources/
+        └── db/migration/           → V1__cria_esquema_inicial.sql,
+                                       V2__popula_dados_iniciais.sql,
+                                       V3__ajustes_indices.sql (Aula 13 — Flyway)
 ```
 
 ## 8. Iterações Futuras
@@ -227,3 +258,4 @@ feira-viva/
 | `0.7` | 10 | GoF: singleton `ConfiguracoesFeiraViva`, `CupomFactory` + hierarquia `Cupom` (value objects), cupom no carrinho (`codigo_cupom`, rotas POST/DELETE `/carrinho/cupom`), `CarrinhoResponseDTO` com `cupom`/`desconto`, regra R7, R2/R6 atualizadas, `/debug/instancias` provisório e dívidas registradas |
 | `0.8` | 11 | Composite em categorias e Strategy de frete: árvore recursiva, seeder com subcategorias, estratégias `PADRAO`/`FIXO`/`RETIRADA`, cupom e estratégia integrados à finalização do pedido |
 | `0.9` | 12 | Swagger/OpenAPI, README final do backend, documentação v0.9, convenção `/api/v1` e remoção do endpoint de debug (singleton já comprovado em aula) |
+| `1.0` | 13 | Flyway: migrations `V1`–`V3`, `ddl-auto=validate`, remoção do `DataSeeder`, `spring-boot-h2console` (Spring Boot 4) e `DB_CLOSE_DELAY=-1`; início do Módulo 3 |

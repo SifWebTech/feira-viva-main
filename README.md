@@ -2,7 +2,7 @@
 
 E-commerce de produtos locais — backend monolítico MVC em Spring Boot.
 
-Java 21 LTS | Spring Boot 4.1.1 | Status: Módulo 2 concluído
+Java 21 LTS | Spring Boot 4.1.1 | Status: Módulo 3 em andamento (Aula 13 — Flyway)
 
 ## Sobre
 
@@ -82,7 +82,7 @@ atuais fica para o Módulo 7, quando houver deploy e clientes externos.
 
 ## Próximos passos (Módulo 3 em diante)
 
-- Migrações de banco com Flyway (substitui `ddl-auto=update`)
+- ✅ Migrações de banco com Flyway (substitui `ddl-auto=update`) — Aula 13
 - Autenticação/autorização com Spring Security + JWT (remove o `?clienteId=` das rotas)
 - Frontend React no módulo 4
 - Integração ViaCEP/Maps e sandbox de pagamento
