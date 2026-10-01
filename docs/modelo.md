@@ -4,7 +4,7 @@
 > **Stack:** Java 21 LTS • Spring Boot 4.1.1 • Maven • React (Vite)
 > **Pacote base:** `br.com.feiraviva`
 > **Ambiente de desenvolvimento:** H2 em memória (`jdbc:h2:mem:feiraviva`) • porta **8090** • console em `/h2-console` (user `sa`, senha vazia)
-> **Versão:** 1.0 — atualizado na Aula 13 (Módulo 3 iniciado — banco versionado com Flyway)
+> **Versão:** 1.1 — atualizado na Aula 14 (Spring Security: filter chain, rotas públicas e BCrypt)
 
 ## 1. Identificação
 
@@ -97,6 +97,28 @@ Endpoint de debug removido — singleton já comprovado em aula.
 - Regra adotada: **migration aplicada nunca é editada** — qualquer ajuste futuro vira
   uma nova versão (`V4`, `V5`, ...).
 
+## Atualização v1.1 — Spring Security: fundamentos
+
+### Filter chain (`config/SecurityConfig`)
+
+- `spring-boot-starter-security` adicionado; sem configuração, todas as rotas ficam bloqueadas
+  (seguro por padrão).
+- Bean `SecurityFilterChain`: CSRF desligado e sessão `STATELESS` (API REST; a identidade
+  virá por JWT na Aula 15); `frameOptions(sameOrigin)` para o console do H2.
+- **Rotas públicas:** `/produtos/**`, `/categorias/**`, Swagger (`/swagger-ui/**`,
+  `/swagger-ui.html`, `/api-docs/**`, `/v3/api-docs/**`), `/h2-console/**` e `POST /clientes`.
+- `anyRequest().permitAll()` é **provisório** — mantém o fluxo com `?clienteId=` até a Aula 15,
+  quando vira `anyRequest().authenticated()` + filtro JWT. Demonstrado em aula: com
+  `authenticated()`, `/pedidos` é recusado e o catálogo continua público.
+
+### Senhas com BCrypt (R5)
+
+- Bean `PasswordEncoder` (`BCryptPasswordEncoder`, custo 10) registrado no `SecurityConfig`.
+- `ClienteService.criar()` grava `passwordEncoder.encode(dto.senha())` — nenhuma senha nova
+  é salva em texto puro.
+- `V4__senha_cliente_em_bcrypt.sql` corrige o dado legado da Maria (a `V2` não é editada);
+  a senha de teste continua sendo `123456`.
+
 ## 2. MVP
 
 Compra de ponta a ponta: catálogo → detalhe do produto → carrinho → login/cadastro → endereço de entrega → confirmação do pedido (pagamento simulado).
@@ -149,9 +171,9 @@ Categoria (N) ──── (1) Categoria (categoriaPai)
 |---|---|---|---|
 | **R1** | Produto com estoque zero não entra no carrinho; quantidade nunca excede o estoque; baixa na finalização e devolução no cancelamento | Service / Model | ✅ Aula 09 |
 | **R2** | Total do pedido = soma dos itens (snapshot) + frete − desconto | Service | ✅ Aula 11 |
-| **R3** | Pedido exige cliente autenticado; rotas `/admin/**` exigem papel `ADMIN` | Security / Controller | 🕒 Aulas 14–15 |
+| **R3** | Pedido exige cliente autenticado; rotas `/admin/**` exigem papel `ADMIN` | Security / Controller | 🟡 Filter chain pronta (Aula 14) · aplicação 🕒 Aula 15 |
 | **R4** | Cancelamento pelo cliente só com status `CRIADO` (devolve estoque) | Service | ✅ Aula 09 |
-| **R5** | Senhas armazenadas com hash; autenticação via JWT | Security | 🕒 Aulas 14–15 |
+| **R5** | Senhas armazenadas com hash; autenticação via JWT | Security | 🟡 BCrypt ✅ Aula 14 · JWT 🕒 Aula 15 |
 | **R6** | Frete calculado pela Strategy `PADRAO`, `FIXO` ou `RETIRADA` | Service / Strategy | ✅ Aula 11 |
 | **R7** | Desconto fixo nunca supera o subtotal | Factory / Model | ✅ Aula 10 |
 
@@ -230,17 +252,20 @@ feira-viva/
     │   │                             CarrinhoResponseDTO, PedidoResponseDTO, ...)
     │   ├── exception/               → ResourceNotFoundException, RegraDeNegocioException,
     │   │                             ApiErrorHandler (@RestControllerAdvice)
-    │   └── config/                  → ConfiguracoesFeiraViva, OpenApiConfig
+    │   └── config/                  → ConfiguracoesFeiraViva, OpenApiConfig,
+    │                                 SecurityConfig (Aula 14)
     └── resources/
         └── db/migration/           → V1__cria_esquema_inicial.sql,
                                        V2__popula_dados_iniciais.sql,
-                                       V3__ajustes_indices.sql (Aula 13 — Flyway)
+                                       V3__ajustes_indices.sql (Aula 13 — Flyway),
+                                       V4__senha_cliente_em_bcrypt.sql (Aula 14)
 ```
 
 ## 8. Iterações Futuras
 
 - **Aula 13:** tabelas viram migrations versionadas com Flyway (substitui `ddl-auto=update`)
-- **Aulas 14–15:** BCrypt + JWT (R3, R5); remoção do query param `clienteId`
+- **Aula 14:** ✅ Spring Security — filter chain, rotas públicas, BCrypt e V4
+- **Aula 15:** JWT (`/auth/login`, `UserDetailsService`), `anyRequest().authenticated()` e remoção do query param `clienteId`
 - **Aula 23:** ViaCEP/Google Maps — frete por CEP e pontos de retirada
 - **Aula 24:** Pagamento 1:1 com Pedido (sandbox); status `PAGO` deixa de ser manual
 - **Iterações:** painel admin, acompanhamento de pedido, retirada na barraca, cupons
@@ -259,3 +284,4 @@ feira-viva/
 | `0.8` | 11 | Composite em categorias e Strategy de frete: árvore recursiva, seeder com subcategorias, estratégias `PADRAO`/`FIXO`/`RETIRADA`, cupom e estratégia integrados à finalização do pedido |
 | `0.9` | 12 | Swagger/OpenAPI, README final do backend, documentação v0.9, convenção `/api/v1` e remoção do endpoint de debug (singleton já comprovado em aula) |
 | `1.0` | 13 | Flyway: migrations `V1`–`V3`, `ddl-auto=validate`, remoção do `DataSeeder`, `spring-boot-h2console` (Spring Boot 4) e `DB_CLOSE_DELAY=-1`; início do Módulo 3 |
+| `1.1` | 14 | Spring Security: `SecurityConfig` (CSRF off, sessão `STATELESS`, rotas públicas, `frameOptions` same-origin), `PasswordEncoder` BCrypt no cadastro de clientes e migration `V4` (senha da Maria em BCrypt); R3/R5 parcialmente atendidas |

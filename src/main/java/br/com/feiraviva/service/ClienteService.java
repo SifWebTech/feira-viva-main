@@ -6,6 +6,7 @@ import br.com.feiraviva.exception.ResourceNotFoundException;
 import br.com.feiraviva.model.Cliente;
 import br.com.feiraviva.model.Endereco;
 import br.com.feiraviva.repository.ClienteRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,9 +14,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class ClienteService {
 
     private final ClienteRepository clienteRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public ClienteService(ClienteRepository clienteRepository) {
+    public ClienteService(ClienteRepository clienteRepository,
+                          PasswordEncoder passwordEncoder) {
         this.clienteRepository = clienteRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Transactional
@@ -26,7 +30,7 @@ public class ClienteService {
         var cliente = new Cliente();
         cliente.setNome(dto.nome());
         cliente.setEmail(dto.email());
-        cliente.setSenhaHash(dto.senha());      // provisório — hash na Aula 15
+        cliente.setSenhaHash(passwordEncoder.encode(dto.senha()));   // BCrypt (Aula 14)
         cliente.setTelefone(dto.telefone());
         return paraResponse(clienteRepository.save(cliente));
     }
